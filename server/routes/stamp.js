@@ -1,10 +1,10 @@
 const express = require("express");
-const recordRoutes = express.Router();
+const stampRoutes = express.Router();
 const dbo = require("../db/conn");
 const ObjectId = require("mongodb").ObjectId;
 
 //This section will help you get a list of all the records
-recordRoutes.route("/record").get((req, res) => {
+stampRoutes.route("/stamp").get((req, res) => {
   let db_connect = dbo.getDb("aaronCollections");
   db_connect
     .collection("stamps")
@@ -16,7 +16,7 @@ recordRoutes.route("/record").get((req, res) => {
 });
 
 // This section will help you get a single record by id
-recordRoutes.route("/record/:id").get(function (req, res) {
+stampRoutes.route("/stamp/:id").get(function (req, res) {
   let db_connect = dbo.getDb();
   let myquery = { _id: ObjectId(req.params.id) };
   db_connect.collection("stamps").findOne(myquery, function (err, result) {
@@ -26,13 +26,14 @@ recordRoutes.route("/record/:id").get(function (req, res) {
 });
 
 // This section will help you create a new record.
-recordRoutes.route("/record/add").post(function (req, response) {
+stampRoutes.route("/stamp/add").post(function (req, response) {
   let db_connect = dbo.getDb();
   let myobj = {
     name: req.body.name,
     date: req.body.date,
     country: req.body.country,
     subject: req.body.subject,
+    stampImage: null,
   };
   db_connect.collection("stamps").insertOne(myobj, function (err, res) {
     if (err) throw err;
@@ -41,7 +42,7 @@ recordRoutes.route("/record/add").post(function (req, response) {
 });
 
 // This section will help you update a record by id.
-recordRoutes.route("/update/:id").post(function (req, response) {
+stampRoutes.route("/update/:id").post(function (req, response) {
   let db_connect = dbo.getDb();
   let myquery = { _id: ObjectId(req.params.id) };
   let newvalues = {
@@ -62,7 +63,7 @@ recordRoutes.route("/update/:id").post(function (req, response) {
 });
 
 // This section will help you delete a record
-recordRoutes.route("/:id").delete((req, response) => {
+stampRoutes.route("/:id").delete((req, response) => {
   let db_connect = dbo.getDb();
   let myquery = { _id: ObjectId(req.params.id) };
   db_connect.collection("stamps").deleteOne(myquery, function (err, obj) {
@@ -72,4 +73,36 @@ recordRoutes.route("/:id").delete((req, response) => {
   });
 });
 
-module.exports = recordRoutes;
+// This section will help upload an image
+const upload = require("../utilities/upload");
+const singleUpload = upload.single("image");
+
+stampRoutes.route("/stamp/:id/add-image").post((req, res) => {
+  let db_connect = dbo.getDb();
+  let myquery = { _id: ObjectId(req.params.id) };
+
+  singleUpload(req, res, function (err) {
+    if (err) {
+      return res.json({
+        success: false,
+        errors: {
+          title: "Image Upload Error",
+          detail: err.message,
+          error: err,
+        },
+      });
+    }
+  });
+
+  const updateValue = { stampImage: req.file.location };
+
+  db_connect
+    .collection("stamps")
+    .updateOne(myquery, updateValue, function (err, res) {
+      if (err) throw err;
+      console.log("1 document updated");
+      response.json(res);
+    });
+});
+
+module.exports = stampRoutes;
